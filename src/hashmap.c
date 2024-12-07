@@ -73,19 +73,25 @@ static HashmapEntryInternal *hashmap_entry_find(Hashmap map, Key *key) {
     hash_t hash = map->hash(key);
     size_t start_index = hash % map->capacity;
 
-    for (size_t i = start_index; i < map->capacity; ++i) {
-        HashmapEntryInternal *entry = &map->entries[i];
-        if (hash == entry->hash && map->equal(key, entry->entry.key)) {
-            return entry;
+#define LOOP_BODY                                       \
+        HashmapEntryInternal *entry = &map->entries[i]; \
+        if (!is_initialized(entry)) {                   \
+            return NULL;                                \
+        }                                               \
+        if (hash == entry->hash                         \
+                && map->equal(key, entry->entry.key)) { \
+            return entry;                               \
         }
+
+    for (size_t i = start_index; i < map->capacity; ++i) {
+        LOOP_BODY
     }
 
     for (size_t i = 0; i < start_index; ++i) {
-        HashmapEntryInternal *entry = &map->entries[i];
-        if (hash == entry->hash && map->equal(key, entry->entry.key)) {
-            return entry;
-        }
+        LOOP_BODY
     }
+
+#undef LOOP_BODY
 
     return NULL;
 }
@@ -207,7 +213,7 @@ Value *hashmap_get(Hashmap map, Key *key) {
     if (entry == NULL) {
         return NULL;
     } else {
-        return &entry->entry.value;
+        return entry->entry.value;
     }
 }
 
