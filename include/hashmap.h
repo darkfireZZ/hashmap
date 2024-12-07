@@ -28,6 +28,9 @@ typedef struct HashmapEntry {
  */
 hash_t string_hash(Key *key);
 
+/**
+ * Default equality function for strings used in `STRING_HASHER`.
+ */
 bool string_equal(Key *key1, Key *key2);
 
 /**
