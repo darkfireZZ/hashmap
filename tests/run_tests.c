@@ -32,7 +32,7 @@
 typedef int result_t;
 
 static result_t create_destroy(void) {
-    Hashmap map = hashmap_create(STRING_HASHER);
+    Hashmap *map = hashmap_create(STRING_HASHER);
     ASSERT(map != NULL);
 
     size_t size = hashmap_size(map);
@@ -51,7 +51,7 @@ static result_t insert_get_remove_once(void) {
     size_t size;
     Value *value_entry;
 
-    Hashmap map = hashmap_create(STRING_HASHER);
+    Hashmap *map = hashmap_create(STRING_HASHER);
     ASSERT(map != NULL);
 
     /* Insert a key-value pair */

@@ -45,29 +45,39 @@ static bool is_initialized(HashmapEntryInternal *entry) {
     return initialized;
 }
 
-static Hashmap hashmap_create_with_capacity(Hasher hasher, size_t capacity) {
-    Hashmap hashmap = malloc(sizeof(*hashmap));
-    if (hashmap == NULL) {
-        return NULL;
-    }
-
+/**
+ * Initialize a hash map with a given capacity.
+ *
+ * Returns true if the initialization was successful, false otherwise.
+ * If the initialization fails, the hash map is left in an undefined state.
+ */
+static bool hashmap_init_with_capacity(Hashmap *hashmap, Hasher hasher, size_t capacity) {
     hashmap->size = 0;
     hashmap->capacity = capacity;
     hashmap->hash = hasher.hash;
     hashmap->equal = hasher.equal;
 
-    hashmap->entries = malloc(hashmap->capacity * sizeof(*hashmap->entries));
-    if (hashmap->entries == NULL) {
-        return NULL;
-    }
-    for (size_t i = 0; i < hashmap->capacity; ++i) {
-        mark_uninitialized(&hashmap->entries[i]);
+    if (capacity == 0) {
+        hashmap->entries = NULL;
+    } else {
+        hashmap->entries = malloc(hashmap->capacity * sizeof(*hashmap->entries));
+        if (hashmap->entries == NULL) {
+            return false;
+        }
+        for (size_t i = 0; i < hashmap->capacity; ++i) {
+            mark_uninitialized(&hashmap->entries[i]);
+        }
     }
 
-    return hashmap;
+    return true;
 }
 
-static HashmapEntryInternal *hashmap_entry_find(Hashmap map, Key *key) {
+static void hashmap_init(Hashmap *map, Hasher hasher) {
+    bool success = hashmap_init_with_capacity(map, hasher, 0);
+    assert(success && "initializing a hashmap with capacity 0 should always succeed");
+}
+
+static HashmapEntryInternal *hashmap_entry_find(Hashmap *map, Key *key) {
     assert(key != NULL);
 
     hash_t hash = map->hash(key);
@@ -96,17 +106,30 @@ static HashmapEntryInternal *hashmap_entry_find(Hashmap map, Key *key) {
     return NULL;
 }
 
-static bool increase_capacity_if_necessary(Hashmap map) {
+static bool increase_capacity_if_necessary(Hashmap *map) {
     if ((map->size + 1) * RECIPROCAL_LOAD_FACTOR > map->capacity) {
         size_t old_size = map->size;
         size_t old_capacity = map->capacity;
         HashmapEntryInternal *old_entries = map->entries;
 
-        /* We double the size of the map */
-        map->size = 0;
-        map->capacity = 2 * old_capacity;
-        map->entries = malloc(map->capacity * sizeof(*map->entries));
-        if (map->entries == NULL) {
+        Hasher hasher = {
+            .hash = map->hash,
+            .equal = map->equal,
+        };
+        size_t new_capacity;
+        if (old_capacity == 0) {
+            new_capacity = INITIAL_CAPACITY;
+        } else {
+            new_capacity = 2 * old_capacity;
+        }
+        bool success = hashmap_init_with_capacity(map, hasher, new_capacity);
+        if (!success) {
+            /* If the initialization fails, we revert to the old state */
+            map->size = old_size;
+            map->capacity = old_capacity;
+            map->hash = hasher.hash;
+            map->equal = hasher.equal;
+            map->entries = old_entries;
             return false;
         }
 
@@ -114,8 +137,8 @@ static bool increase_capacity_if_necessary(Hashmap map) {
         for (size_t i = 0; i < old_capacity; ++i) {
             HashmapEntryInternal *entry = &old_entries[i];
             if (is_initialized(entry)) {
-                bool success = hashmap_insert(map, entry->entry.key, entry->entry.value, NULL);
-                assert(success && "inserting an element into a larger map should always succeed");
+                bool inserted = hashmap_insert(map, entry->entry.key, entry->entry.value, NULL);
+                assert(inserted && "inserting an element into a larger map should always succeed");
             }
         }
 
@@ -149,11 +172,16 @@ bool string_equal(void *key1, void *key2) {
     return strcmp((char *)key1, (char *)key2) == 0;
 }
 
-Hashmap hashmap_create(Hasher hasher) {
-    return hashmap_create_with_capacity(hasher, INITIAL_CAPACITY);
+Hashmap *hashmap_create(Hasher hasher) {
+    Hashmap *hashmap = malloc(sizeof(*hashmap));
+    if (hashmap == NULL) {
+        return NULL;
+    }
+    hashmap_init(hashmap, hasher);
+    return hashmap;
 }
 
-bool hashmap_insert(Hashmap map, Key *key, Value *value, Value **entry) {
+bool hashmap_insert(Hashmap *map, Key *key, Value *value, Value **entry) {
     assert(key != NULL);
     assert(value != NULL);
 
@@ -206,7 +234,7 @@ bool hashmap_insert(Hashmap map, Key *key, Value *value, Value **entry) {
     assert(false && "Unreachable: There should always be some capacity left");
 }
 
-Value *hashmap_get(Hashmap map, Key *key) {
+Value *hashmap_get(Hashmap *map, Key *key) {
     assert(key != NULL);
 
     HashmapEntryInternal *entry = hashmap_entry_find(map, key);
@@ -217,7 +245,7 @@ Value *hashmap_get(Hashmap map, Key *key) {
     }
 }
 
-bool hashmap_remove(Hashmap map, Key *key, HashmapEntry *entry) {
+bool hashmap_remove(Hashmap *map, Key *key, HashmapEntry *entry) {
     HashmapEntryInternal *to_remove = hashmap_entry_find(map, key);
     if (to_remove == NULL) {
         return false;
@@ -255,11 +283,11 @@ bool hashmap_remove(Hashmap map, Key *key, HashmapEntry *entry) {
     assert(false && "Unreachable: The hashmap is never completely full");
 }
 
-size_t hashmap_size(Hashmap map) {
+size_t hashmap_size(Hashmap *map) {
     return map->size;
 }
 
-void hashmap_destroy(Hashmap map, void (*destroy_key)(Key *), void (*destroy_value)(Value *)) {
+void hashmap_destroy(Hashmap *map, void (*destroy_key)(Key *), void (*destroy_value)(Value *)) {
 
     /* We first clean up all the keys and values */
     for (size_t i = 0; i < map->capacity; ++i) {

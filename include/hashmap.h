@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct Hashmap *Hashmap;
+typedef struct Hashmap Hashmap;
 typedef void Key;
 typedef void Value;
 typedef uint32_t hash_t;
@@ -45,7 +45,7 @@ bool string_equal(Key *key1, Key *key2);
  * You should call `hashmap_destroy` when you are done with the hashmap.
  * The hash map does not take ownership of any keys or values
  */
-Hashmap hashmap_create(Hasher hasher);
+Hashmap *hashmap_create(Hasher hasher);
 
 /**
  * Insert a key-value pair into the hashmap.
@@ -64,14 +64,14 @@ Hashmap hashmap_create(Hasher hasher);
  *
  *  `entry` will remain valid until the next operation on the hashmap.
  */
-bool hashmap_insert(Hashmap map, Key *key, Value *value, Value **entry);
+bool hashmap_insert(Hashmap *map, Key *key, Value *value, Value **entry);
 
 /**
  * Get the value associated with the given key.
  *
  * Returns NULL if the key is not in the hashmap.
  */
-Value *hashmap_get(Hashmap map, Key *key);
+Value *hashmap_get(Hashmap *map, Key *key);
 
 /**
  * Remove the key-value pair associated with the given key.
@@ -86,12 +86,12 @@ Value *hashmap_get(Hashmap map, Key *key);
  * key-value pair. Otherwise, the value of `entry` is undefined and should not
  * be used.
  */
-bool hashmap_remove(Hashmap map, Key *key, HashmapEntry *entry);
+bool hashmap_remove(Hashmap *map, Key *key, HashmapEntry *entry);
 
 /**
  * Get the number of key-value pairs in the hashmap.
  */
-size_t hashmap_size(Hashmap map);
+size_t hashmap_size(Hashmap *map);
 
 /**
  * Destroy the hashmap.
@@ -99,7 +99,7 @@ size_t hashmap_size(Hashmap map);
  * If `destroy_key` is not NULL, it will be called on each key.
  * If `destroy_value` is not NULL, it will be called on each value.
  */
-void hashmap_destroy(Hashmap map, void (*destroy_key)(Key *), void (*destroy_value)(Value *));
+void hashmap_destroy(Hashmap *map, void (*destroy_key)(Key *), void (*destroy_value)(Value *));
 
 #endif
 
