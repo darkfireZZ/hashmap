@@ -18,9 +18,11 @@
 #define FAILURE 1
 
 #define TEST(name) \
-    if (name() == FAILURE) { \
+    num_total += 1; \
+    if (name() == SUCCESS) { \
+        num_successful += 1; \
+    } else { \
         fprintf(stderr, "Test " COLOR_STRING("%s", RED) " in " COLOR_STRING("%s", RED) " failed\n", #name, __FILE__); \
-        result = FAILURE; \
     }
 
 #define ASSERT(condition) \
@@ -117,18 +119,19 @@ static result_t remove_from_empty(void) {
 }
 
 int main(void) {
-    result_t result = SUCCESS;
+    unsigned int num_successful = 0;
+    unsigned int num_total = 0;
 
     TEST(create_destroy);
     TEST(insert_get_remove_once);
     TEST(get_from_empty);
     TEST(remove_from_empty);
 
-    if (result == SUCCESS) {
-        fprintf(stderr, COLOR_STRING("All tests passed\n", GREEN));
+    if (num_successful == num_total) {
+        fprintf(stderr, COLOR_STRING("All tests passed (%d/%d)\n", GREEN), num_successful, num_total);
         return 0;
     } else {
-        fprintf(stderr, COLOR_STRING("Some tests failed\n", RED));
+        fprintf(stderr, COLOR_STRING("Some tests failed (%d/%d passed)\n", RED), num_successful, num_total);
         return 1;
     }
 }
