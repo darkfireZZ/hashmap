@@ -90,6 +90,19 @@ static result_t insert_get_remove_once(void) {
     return SUCCESS;
 }
 
+static result_t get_from_empty(void) {
+    Hashmap *map = hashmap_create(STRING_HASHER);
+    ASSERT(map != NULL);
+
+    /* Get a key that is not in the map */
+    Value *value = hashmap_get(map, "non-existent");
+    ASSERT(value == NULL);
+
+    hashmap_destroy(map, NULL, NULL);
+
+    return SUCCESS;
+}
+
 static result_t remove_from_empty(void) {
     Hashmap *map = hashmap_create(STRING_HASHER);
     ASSERT(map != NULL);
@@ -108,6 +121,7 @@ int main(void) {
 
     TEST(create_destroy);
     TEST(insert_get_remove_once);
+    TEST(get_from_empty);
     TEST(remove_from_empty);
 
     if (result == SUCCESS) {
