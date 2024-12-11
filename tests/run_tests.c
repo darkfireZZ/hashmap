@@ -90,11 +90,25 @@ static result_t insert_get_remove_once(void) {
     return SUCCESS;
 }
 
+static result_t remove_from_empty(void) {
+    Hashmap *map = hashmap_create(STRING_HASHER);
+    ASSERT(map != NULL);
+
+    /* Remove a key that is not in the map */
+    bool success = hashmap_remove(map, "non-existent", NULL);
+    ASSERT(!success);
+
+    hashmap_destroy(map, NULL, NULL);
+
+    return SUCCESS;
+}
+
 int main(void) {
     result_t result = SUCCESS;
 
     TEST(create_destroy);
     TEST(insert_get_remove_once);
+    TEST(remove_from_empty);
 
     if (result == SUCCESS) {
         fprintf(stderr, COLOR_STRING("All tests passed\n", GREEN));

@@ -80,6 +80,10 @@ static void hashmap_init(Hashmap *map, Hasher hasher) {
 static HashmapEntryInternal *hashmap_entry_find(Hashmap *map, Key *key) {
     assert(key != NULL);
 
+    if (map->capacity == 0) {
+        return NULL;
+    }
+
     hash_t hash = map->hash(key);
     size_t start_index = hash % map->capacity;
 
