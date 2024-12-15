@@ -58,7 +58,7 @@ Hashmap *hashmap_create(Hasher hasher);
  *
  * There are 3 possible outcomes:
  *  1. The key-value pair is successfully inserted. In this case `*entry` will
- *     be set to the newly inserted value true will be returned.
+ *     be set to the newly inserted value and true will be returned.
  *  2. The key-value pair is not inserted because the key already exists in the
  *     hashmap. In this case `*entry` will be set to the existing value pair and
  *     false will be returned.
@@ -101,6 +101,9 @@ size_t hashmap_size(Hashmap *map);
  *
  * If `destroy_key` is not NULL, it will be called on each key.
  * If `destroy_value` is not NULL, it will be called on each value.
+ *
+ * After calling this function, the hashmap is no longer valid and should not
+ * be used again.
  */
 void hashmap_destroy(Hashmap *map, void (*destroy_key)(Key *), void (*destroy_value)(Value *));
 
