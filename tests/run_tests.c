@@ -2,6 +2,7 @@
 #include <hashmap.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #define COLOR_STRING(string, color) "\033[" color "m" string "\033[0m"
 
@@ -17,12 +18,12 @@
 #define SUCCESS 0
 #define FAILURE 1
 
-#define TEST(name) \
+#define TEST(test_function_call) \
     num_total += 1; \
-    if (name() == SUCCESS) { \
+    if ((test_function_call) == SUCCESS) { \
         num_successful += 1; \
     } else { \
-        fprintf(stderr, "Test " COLOR_STRING("%s", RED) " in " COLOR_STRING("%s", RED) " failed\n", #name, __FILE__); \
+        fprintf(stderr, "Test " COLOR_STRING("%s", RED) " in " COLOR_STRING("%s", RED) " failed\n", #test_function_call, __FILE__); \
     }
 
 #define ASSERT(condition) \
@@ -118,14 +119,55 @@ static result_t remove_from_empty(void) {
     return SUCCESS;
 }
 
+static result_t insert_get_remove_n(unsigned int n) {
+    Hashmap *map = hashmap_create(STRING_HASHER);
+    ASSERT(map != NULL);
+
+    /* First, we insert n key-value pairs */
+    for (unsigned int i = 0; i < n; ++i) {
+        int length = snprintf(NULL, 0, "%d", i);
+        ASSERT(length > 0);
+        char *key = malloc((size_t)length + 1);
+        ASSERT(key != NULL);
+        int num_written = snprintf(key, (size_t)length + 1, "%d", i);
+        ASSERT(num_written == length);
+
+        unsigned int *value = malloc(sizeof(i));
+        ASSERT(value != NULL);
+        *value = i;
+
+        Value *entry = NULL;
+        bool success = hashmap_insert(map, key, value, &entry);
+        ASSERT(success);
+
+        ASSERT(entry != NULL);
+        ASSERT(entry == value);
+
+        size_t size = hashmap_size(map);
+        ASSERT(size == i + 1);
+    }
+
+    /* Then, we free the map */
+    hashmap_destroy(map, free, free);
+
+    return SUCCESS;
+}
+
 int main(void) {
     unsigned int num_successful = 0;
     unsigned int num_total = 0;
 
-    TEST(create_destroy);
-    TEST(insert_get_remove_once);
-    TEST(get_from_empty);
-    TEST(remove_from_empty);
+    TEST(create_destroy());
+    TEST(insert_get_remove_once());
+    TEST(get_from_empty());
+    TEST(remove_from_empty());
+    TEST(insert_get_remove_n(0));
+    TEST(insert_get_remove_n(1));
+    TEST(insert_get_remove_n(10));
+    TEST(insert_get_remove_n(100));
+    TEST(insert_get_remove_n(1000));
+    TEST(insert_get_remove_n(10000));
+    TEST(insert_get_remove_n(100000));
 
     if (num_successful == num_total) {
         fprintf(stderr, COLOR_STRING("All tests passed (%d/%d)\n", GREEN), num_successful, num_total);
