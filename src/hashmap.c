@@ -220,9 +220,9 @@ bool hashmap_insert(Hashmap *map, Key *key, Value *value, Value **entry) {
         if (hash == bucket->hash && map->equal(key, bucket->entry.key)) { \
             /* An entry with the same key already exists */               \
             if (entry != NULL) {                                          \
-                *entry = &bucket->entry.value;                            \
+                *entry = bucket->entry.value;                             \
             }                                                             \
-            return bucket;                                                \
+            return false;                                                 \
         }
 
     for (size_t i = start_index; i < map->capacity; ++i) {
