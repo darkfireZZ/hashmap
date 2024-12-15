@@ -1,11 +1,12 @@
 
-BUILD_DIR := build
+BUILD ?= release
+
+ROOT_BUILD_DIR := build
+BUILD_DIR := $(ROOT_BUILD_DIR)/$(BUILD)
 SRC_DIR := src
 TEST_SRC_DIR := tests
 
 CC := gcc
-
-BUILD ?= release
 
 CFLAGS := -std=c99 -Iinclude
 CFLAGS_RELEASE := -O3 -DNDEBUG
@@ -48,4 +49,4 @@ $(BUILD_DIR)/hashmap_test.o: $(SRC_DIR)/hashmap.c
 
 .PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(ROOT_BUILD_DIR)
