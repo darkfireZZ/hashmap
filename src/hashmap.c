@@ -280,7 +280,7 @@ bool hashmap_remove(Hashmap *map, Key *key, HashmapEntry *entry) {
         }                                       \
 
     HashmapEntryInternal *end = map->entries + map->capacity;
-    for (HashmapEntryInternal *current = to_remove; current != end; ++current) {
+    for (HashmapEntryInternal *current = to_remove + 1; current != end; ++current) {
         LOOP_BODY
     }
 
