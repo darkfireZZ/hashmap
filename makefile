@@ -9,7 +9,13 @@ TEST_SRC_DIR := tests
 CC := gcc
 
 CFLAGS := -std=c99 -Iinclude
+
 CFLAGS_RELEASE := -O3 -DNDEBUG
+# Disable warnings about unused variables in release
+# Some variables are only needed in assertions, which are disabled in release
+# and hence create false positives.
+CFLAGS_RELEASE += -Wno-unused-variable
+
 CFLAGS_DEBUG := -Werror -g -O0 -fsanitize=address,leak,undefined
 
 LDFLAGS_DEBUG := -fsanitize=address,leak,undefined

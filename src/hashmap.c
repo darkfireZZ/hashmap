@@ -20,6 +20,12 @@
  */
 #define RECIPROCAL_LOAD_FACTOR 2
 
+#define UNREACHABLE(msg)      \
+    do {                      \
+        assert(false && msg); \
+        abort();              \
+    } while (0)
+
 typedef struct HashmapEntryInternal {
     HashmapEntry entry;
     hash_t hash;
@@ -235,7 +241,7 @@ bool hashmap_insert(Hashmap *map, Key *key, Value *value, Value **entry) {
 
 #undef INSERT_IF_POSSIBLE
 
-    assert(false && "Unreachable: There should always be some capacity left");
+    UNREACHABLE("Unreachable: There should always be some capacity left");
 }
 
 Value *hashmap_get(Hashmap *map, Key *key) {
@@ -284,7 +290,7 @@ bool hashmap_remove(Hashmap *map, Key *key, HashmapEntry *entry) {
     }
 #undef LOOP_BODY
     
-    assert(false && "Unreachable: The hashmap is never completely full");
+    UNREACHABLE("Unreachable: The hashmap is never completely full");
 }
 
 size_t hashmap_size(Hashmap *map) {
