@@ -5,6 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef NDEBUG
+#define VALIDATE_HASHMAP(map) ((void)0)
+#else
+#define VALIDATE_HASHMAP(map) validate_hashmap(map)
+#endif
+
 /**
  * The initial capacity of the hash map.
  */
@@ -51,6 +57,45 @@ static bool is_initialized(HashmapEntryInternal *entry) {
     return initialized;
 }
 
+#ifndef NDEBUG
+static void validate_hashmap(Hashmap *map) {
+    /* We need to guard against infinite recursion */
+    static bool recursion_guard = false;
+    if (recursion_guard) {
+        return;
+    }
+    recursion_guard = true;
+
+    assert(map->size <= map->capacity && "Size should never exceed the capacity");
+    assert(map->hash != NULL && "Hash function should never be NULL");
+    assert(map->equal != NULL && "Equality function should never be NULL");
+
+    if (map->capacity == 0) {
+        assert(map->entries == NULL && "If capacity is 0, entries should be NULL");
+    } else {
+        assert(map->entries != NULL && "If capacity is not 0, entries should not be NULL");
+    }
+
+    unsigned int initialized_entries = 0;
+    for (size_t i = 0; i < map->capacity; ++i) {
+        HashmapEntryInternal *entry = &map->entries[i];
+        if (is_initialized(entry)) {
+            initialized_entries += 1;
+            assert(entry->hash == map->hash(entry->entry.key)
+                    && "Hash should match");
+            /* If the entry is initialized, we should be able to find it */
+            Value *value = hashmap_get(map, entry->entry.key);
+            assert(value == entry->entry.value
+                    && "Initialized entry should be retrievable");
+        }
+    }
+    assert(initialized_entries == map->size
+            && "Number of initialized entries should be equal to the size");
+
+    recursion_guard = false;
+}
+#endif
+
 /**
  * Initialize a hash map with a given capacity.
  *
@@ -75,6 +120,8 @@ static bool hashmap_init_with_capacity(Hashmap *hashmap, Hasher hasher, size_t c
         }
     }
 
+    VALIDATE_HASHMAP(hashmap);
+
     return true;
 }
 
@@ -84,6 +131,8 @@ static void hashmap_init(Hashmap *map, Hasher hasher) {
 }
 
 static HashmapEntryInternal *hashmap_entry_find(Hashmap *map, Key *key) {
+    VALIDATE_HASHMAP(map);
+
     assert(key != NULL);
 
     if (map->capacity == 0) {
@@ -117,6 +166,8 @@ static HashmapEntryInternal *hashmap_entry_find(Hashmap *map, Key *key) {
 }
 
 static bool increase_capacity_if_necessary(Hashmap *map) {
+    VALIDATE_HASHMAP(map);
+
     if ((map->size + 1) * RECIPROCAL_LOAD_FACTOR > map->capacity) {
         size_t old_size = map->size;
         size_t old_capacity = map->capacity;
@@ -140,6 +191,8 @@ static bool increase_capacity_if_necessary(Hashmap *map) {
             map->hash = hasher.hash;
             map->equal = hasher.equal;
             map->entries = old_entries;
+
+            VALIDATE_HASHMAP(map);
             return false;
         }
 
@@ -158,6 +211,7 @@ static bool increase_capacity_if_necessary(Hashmap *map) {
         free(old_entries);
     }
 
+    VALIDATE_HASHMAP(map);
     return true;
 }
 
@@ -188,10 +242,14 @@ Hashmap *hashmap_create(Hasher hasher) {
         return NULL;
     }
     hashmap_init(hashmap, hasher);
+
+    VALIDATE_HASHMAP(hashmap);
     return hashmap;
 }
 
 bool hashmap_insert(Hashmap *map, Key *key, Value *value, Value **entry) {
+    VALIDATE_HASHMAP(map);
+
     assert(key != NULL);
     assert(value != NULL);
 
@@ -200,6 +258,7 @@ bool hashmap_insert(Hashmap *map, Key *key, Value *value, Value **entry) {
         if (entry != NULL) {
             *entry = NULL;
         }
+        VALIDATE_HASHMAP(map);
         return false;
     }
 
@@ -220,6 +279,8 @@ bool hashmap_insert(Hashmap *map, Key *key, Value *value, Value **entry) {
             if (entry != NULL) {                                          \
                 *entry = bucket->entry.value;                             \
             }                                                             \
+                                                                          \
+            VALIDATE_HASHMAP(map);                                        \
             return true;                                                  \
         }                                                                 \
                                                                           \
@@ -228,6 +289,8 @@ bool hashmap_insert(Hashmap *map, Key *key, Value *value, Value **entry) {
             if (entry != NULL) {                                          \
                 *entry = bucket->entry.value;                             \
             }                                                             \
+                                                                          \
+            VALIDATE_HASHMAP(map);                                        \
             return false;                                                 \
         }
 
@@ -256,6 +319,8 @@ Value *hashmap_get(Hashmap *map, Key *key) {
 }
 
 bool hashmap_remove(Hashmap *map, Key *key, HashmapEntry *entry) {
+    VALIDATE_HASHMAP(map);
+
     HashmapEntryInternal *to_remove = hashmap_entry_find(map, key);
     if (to_remove == NULL) {
         return false;
@@ -272,6 +337,8 @@ bool hashmap_remove(Hashmap *map, Key *key, HashmapEntry *entry) {
             *to_remove = *replacement;          \
             mark_uninitialized(replacement);    \
             map->size -= 1;                     \
+                                                \
+            VALIDATE_HASHMAP(map);              \
             return true;                        \
         }                                       \
                                                 \
@@ -298,6 +365,7 @@ size_t hashmap_size(Hashmap *map) {
 }
 
 void hashmap_destroy(Hashmap *map, void (*destroy_key)(Key *), void (*destroy_value)(Value *)) {
+    VALIDATE_HASHMAP(map);
 
     /* We first clean up all the keys and values */
     for (size_t i = 0; i < map->capacity; ++i) {
