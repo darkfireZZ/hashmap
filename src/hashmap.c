@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef NDEBUG
-#define VALIDATE_HASHMAP(map) ((void)0)
-#else
+#ifdef CONSISTENCY_CHECKS
 #define VALIDATE_HASHMAP(map) validate_hashmap(map)
+#else
+#define VALIDATE_HASHMAP(map) ((void)0)
 #endif
 
 /**
@@ -57,7 +57,7 @@ static bool is_initialized(HashmapEntryInternal *entry) {
     return initialized;
 }
 
-#ifndef NDEBUG
+#ifdef CONSISTENCY_CHECKS
 static void validate_hashmap(Hashmap *map) {
     /* We need to guard against infinite recursion */
     static bool recursion_guard = false;
@@ -330,21 +330,35 @@ bool hashmap_remove(Hashmap *map, Key *key, HashmapEntry *entry) {
         *entry = to_remove->entry;
     }
 
-    HashmapEntryInternal *replacement = to_remove;
+    HashmapEntryInternal *to_replace = to_remove;
 
-#define LOOP_BODY                               \
-        if (!is_initialized(current)) {         \
-            *to_remove = *replacement;          \
-            mark_uninitialized(replacement);    \
-            map->size -= 1;                     \
-                                                \
-            VALIDATE_HASHMAP(map);              \
-            return true;                        \
-        }                                       \
-                                                \
-        if (current->hash == to_remove->hash) { \
-            replacement = current;              \
-        }                                       \
+#define LOOP_BODY                                                                         \
+        if (!is_initialized(current)) {                                                   \
+            mark_uninitialized(to_replace);                                               \
+            map->size -= 1;                                                               \
+                                                                                          \
+            VALIDATE_HASHMAP(map);                                                        \
+            return true;                                                                  \
+        }                                                                                 \
+                                                                                          \
+        /* This cast is safe because current is always within the bounds */               \
+        size_t current_index = (size_t)(current - map->entries);                          \
+        size_t to_replace_index = (size_t)(to_replace - map->entries);                    \
+        size_t preferred_index = current->hash % map->capacity;                           \
+        if (to_replace_index < current_index) {                                           \
+            /* No wrap-around */                                                          \
+            if (preferred_index <= to_replace_index || preferred_index > current_index) { \
+                *to_replace = *current;                                                   \
+                to_replace = current;                                                     \
+            }                                                                             \
+        } else {                                                                          \
+            /* We wrapped around */                                                       \
+            assert(to_replace_index > current_index);                                     \
+            if (preferred_index > current_index && preferred_index <= to_replace_index) { \
+                *to_replace = *current;                                                   \
+                to_replace = current;                                                     \
+            }                                                                             \
+        }
 
     HashmapEntryInternal *end = map->entries + map->capacity;
     for (HashmapEntryInternal *current = to_remove + 1; current != end; ++current) {
