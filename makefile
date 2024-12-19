@@ -20,6 +20,10 @@ CFLAGS_DEBUG := -Werror -g -O0 -fsanitize=address,leak,undefined
 
 LDFLAGS_DEBUG := -fsanitize=address,leak,undefined
 
+ifeq ($(CONSISTENCY_CHECKS), 1)
+	CFLAGS += -DCONSISTENCY_CHECKS
+endif
+
 ifeq ($(BUILD), release)
 	CFLAGS += $(CFLAGS_RELEASE)
 	LDFLAGS += $(LDFLAGS_RELEASE)
